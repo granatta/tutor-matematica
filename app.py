@@ -34,11 +34,7 @@ GESTIONE DELLE FIGURE GEOMETRICHE E ASTRAZIONI:
 - Per concetti astratti (funzioni, proporzionalità): usa esempi numerici concreti prima di qualsiasi generalizzazione.
 
 GESTIONE DELLE TABELLE:
-- Quando un confronto o un elenco di dati è più chiaro in forma tabellare, usa SEMPRE questo formato esatto, mai markdown o ASCII:
-  <TABELLA>intestazione1|intestazione2|intestazione3 ## valore1|valore2|valore3 ## valore1|valore2|valore3</TABELLA>
-- La prima riga (prima di "##") è l'intestazione delle colonne. Ogni riga successiva è separata da "##". Ogni cella nella stessa riga è separata da "|".
-- Scrivi tutto il tag <TABELLA> su un'unica riga di testo, senza andare a capo al suo interno.
-- Esempio: <TABELLA>Numero|Quadrato|Cubo ## 1|1|1 ## 2|4|8 ## 3|9|27</TABELLA>
+- Anche quando un confronto o un elenco di dati è più chiaro in forma tabellare, usa SEMPRE un elenco. La formattazione delle tabelle html  è illeggibile
 
 QUANDO LO STUDENTE SBAGLIA:
 - Individua ESATTAMENTE dove si trova l'errore.
