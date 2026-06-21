@@ -75,7 +75,7 @@ def almanacco():
 
     # Genera un nuovo almanacco per oggi
     prompt = (
-        "Genera l'almanacco scientifico di oggi per studenti di scuola media (11-13 anni).\n"
+        f"Genera l'almanacco scientifico di ({oggi}) per studenti di scuola media (11-13 anni).\n"
         "Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo, con questa struttura esatta:\n\n"
         "{\n"
         '  "quesito_laterale": "un quesito di pensiero laterale breve, intrigante, con soluzione non ovvia",\n'
