@@ -118,6 +118,7 @@ def chat():
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1000,
+        temperature=1.0,
         system=SYSTEM,
         messages=messages
     )
