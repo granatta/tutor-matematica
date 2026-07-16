@@ -3,6 +3,7 @@ from flask_cors import CORS
 import anthropic
 import os
 import json
+import random
 from datetime import date
 
 ALMANACCO_FILE = "almanacco_cache.json"
@@ -62,16 +63,65 @@ def index():
     return send_file("tutor.html")
 
 
+# Lista di temi storici - (personaggio/episodio, ambito)
+TEMI_STORIA = [
+    ("Pitagora", "geometria"),
+    ("Talete", "geometria"),
+    ("Euclide", "geometria"),
+    ("Archimede", "fisica e geometria"),
+    ("Ipazia", "astronomia e matematica"),
+    ("Fibonacci", "numeri"),
+    ("Cartesio", "algebra e geometria"),
+    ("Gauss", "numeri e algebra"),
+    ("Newton", "fisica e calcolo"),
+    ("Eulero", "algebra e analisi"),
+    ("Sofia Kovalevskaya", "analisi"),
+    ("Ada Lovelace", "informatica e algoritmi"),
+    ("Ramanujan", "numeri"),
+    ("Emmy Noether", "algebra"),
+    ("Al-Khwarizmi", "algebra"),
+    ("Leibniz", "calcolo"),
+    ("Blaise Pascal", "probabilità"),
+    ("Alan Turing", "informatica e logica"),
+    ("Georg Cantor", "infinito e insiemi"),
+    ("Talete e la misura delle piramidi", "geometria applicata"),
+]
+
+STORIA_HISTORY_FILE = "storia_history.json"
+
+def scegli_tema_storia():
+    try:
+        with open(STORIA_HISTORY_FILE, "r", encoding="utf-8") as f:
+            usati_recenti = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        usati_recenti = []
+
+    disponibili = [t for t in TEMI_STORIA if t[0] not in usati_recenti]
+    if not disponibili:
+        disponibili = TEMI_STORIA  # reset se esauriti
+
+    scelto = random.choice(disponibili)
+
+    usati_recenti.append(scelto[0])
+    usati_recenti = usati_recenti[-10:]  # tiene solo gli ultimi 10
+    with open(STORIA_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(usati_recenti, f, ensure_ascii=False)
+
+    return scelto
+
+
 @app.route("/almanacco")
 def almanacco():
     oggi = date.today().isoformat()
-
     # Controlla se esiste già la cache di oggi
     if os.path.exists(ALMANACCO_FILE):
         with open(ALMANACCO_FILE, "r", encoding="utf-8") as f:
             cache = json.load(f)
         if cache.get("data") == oggi:
             return jsonify(cache["contenuto"])
+
+    # Scegli il tema storico in modo casuale (non lasciarlo decidere al modello)
+    personaggio, ambito = scegli_tema_storia()
 
     # Genera un nuovo almanacco per oggi
     prompt = (
@@ -84,29 +134,26 @@ def almanacco():
         '  "indovinello": "un indovinello matematico o logico adatto a 11-13 anni",\n'
         '  "soluzione_indovinello": "la risposta dell\'indovinello",\n'
         '  "storia_titolo": "nome del matematico, scoperta o evento storico di oggi",\n'
-        '  "storia_testo": "racconto breve (4-5 frasi) di un episodio di storia della matematica: '
-        'un matematico, una scoperta, un aneddoto curioso, adatto a 11-13 anni e scritto in modo coinvolgente"\n'
+        '  "storia_testo": "racconto breve (4-5 frasi) di un episodio di storia della matematica, '
+        'adatto a 11-13 anni e scritto in modo coinvolgente"\n'
         "}\n\n"
-        "Varia ogni giorno il personaggio o l'episodio storico (es. Pitagora, Talete, Euclide, Archimede, "
-        "Ipazia, Fibonacci, Cartesio, Gauss, Newton, Eulero, Sofia Kovalevskaya, Ada Lovelace, Ramanujan, ecc.) "
-        "e l'ambito (algebra, geometria, numeri, fisica, astronomia). Evita di ripetere sempre Pitagora e Archimede."
+        f"Per storia_titolo e storia_testo, scrivi OBBLIGATORIAMENTE di: {personaggio} "
+        f"(ambito: {ambito}). Scegli un aneddoto o episodio specifico e poco scontato legato a questa figura, "
+        "evitando il fatto più ovvio/conosciuto se possibile."
     )
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1500,
+        temperature=1.0,
         messages=[{"role": "user", "content": prompt}]
     )
-
     testo = response.content[0].text.strip()
     # Rimuove eventuali fence markdown ```json ... ```
     testo = testo.replace("```json", "").replace("```", "").strip()
-
     contenuto = json.loads(testo)
-
     with open(ALMANACCO_FILE, "w", encoding="utf-8") as f:
         json.dump({"data": oggi, "contenuto": contenuto}, f, ensure_ascii=False)
-
     return jsonify(contenuto)
 
 
