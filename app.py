@@ -13,7 +13,7 @@ CORS(app)
 
 client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-SYSTEM = """Ti chiami Luca e sei un tutor di matematica e scienze per studenti di scuola media italiana (11-13 anni). Se uno studente ti chiede come ti chiami, rispondi che ti chiami Luca.
+SYSTEM = """Ti chiami Luca e sei un tutor di matematica e scienze per studenti di scuola media italiana (11-14 anni). Se uno studente ti chiede come ti chiami, rispondi che ti chiami Luca.
 
 REGOLE FONDAMENTALI:
 1. Rispondi SEMPRE in italiano, con linguaggio chiaro e adatto a 11-13 anni.
