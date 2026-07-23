@@ -7,6 +7,7 @@ import random
 from datetime import date
 
 ALMANACCO_FILE = "almanacco_cache.json"
+TEMI_HISTORY_FILE = "temi_history.json"  # history unica per tutte le aree
 
 app = Flask(__name__)
 CORS(app)
@@ -16,10 +17,10 @@ client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 SYSTEM = """Ti chiami Luca e sei un tutor di matematica e scienze per studenti di scuola media italiana (11-14 anni). Se uno studente ti chiede come ti chiami, rispondi che ti chiami Luca.
 
 REGOLE FONDAMENTALI:
-1. Rispondi SEMPRE in italiano, con linguaggio chiaro e adatto a 11-13 anni.
+1. Rispondi SEMPRE in italiano, con linguaggio chiaro e adatto a 11-14 anni.
 2. Non usare mai diagrammi testuali (ASCII art, diagrammi Eulero-Venn in testo, tabelle disegnate con caratteri). Sono illeggibili.
 3. Per le formule usa LaTeX: inline con \\( ... \\), su riga separata con \\[ ... \\].
-4. A domande che esulano dal programma di matematica e scienze 11-13, rispondi in modo simpatico che esulano dal programma, anche si strettamente di matematica (come ad esempio la trigonometria)
+4. A domande che esulano dal programma di matematica e scienze 11-14, rispondi in modo simpatico che esulano dal programma, anche si strettamente di matematica (come ad esempio la trigonometria)
 5. Per il prodotto usa sempre il punto e non la x.
 
 GESTIONE DELLE FIGURE GEOMETRICHE E ASTRAZIONI:
@@ -62,8 +63,15 @@ Tieni questi momenti brevi (1-3 frasi), mai forzati, e mai nello stesso schema d
 def index():
     return send_file("tutor.html")
 
+@app.route("/old")
+def old():
+    return send_file("tutor_old.html")
 
-# Lista di temi storici - (personaggio/episodio, ambito)
+
+# ---------------------------------------------------------------------------
+# TEMI per le 4 aree dell'almanacco, ognuna come lista di tuple (tema, ambito)
+# ---------------------------------------------------------------------------
+
 TEMI_STORIA = [
     ("Pitagora", "geometria"),
     ("Talete", "geometria"),
@@ -87,25 +95,75 @@ TEMI_STORIA = [
     ("Talete e la misura delle piramidi", "geometria applicata"),
 ]
 
-STORIA_HISTORY_FILE = "storia_history.json"
+TEMI_QUESITO = [
+    ("logica deduttiva", "chi mente/chi dice il vero, indizi da incrociare"),
+    ("probabilità intuitiva", "una situazione dove l'intuito inganna"),
+    ("fisica quotidiana", "un fenomeno che sembra assurdo ma ha una spiegazione semplice"),
+    ("strategia e giochi", "una situazione tipo scacchi/carte dove serve pensare un passo avanti"),
+    ("misure e stime", "stimare una quantità grande usando il buon senso"),
+    ("spazio e forme", "un rompicapo che richiede di visualizzare mentalmente un oggetto 3D o un percorso"),
+    ("linguaggio e ambiguità", "un indizio nascosto in una frase o in una domanda mal posta"),
+    ("numeri e pattern", "una sequenza o una proprietà numerica sorprendente"),
+    ("tempo e pianificazione", "un problema di organizzazione con vincoli (orari, percorsi, priorità)"),
+    ("percezione e illusioni", "qualcosa che l'occhio o il senso comune interpretano male"),
+]
 
-def scegli_tema_storia():
+TEMI_CURIOSITA = [
+    ("numeri primi e crittografia", "matematica"),
+    ("lo spazio e l'universo", "astronomia"),
+    ("il corpo umano", "biologia"),
+    ("il mondo animale", "biologia"),
+    ("la tecnologia e i computer", "informatica"),
+    ("la geometria nella natura", "matematica e natura"),
+    ("l'infinito e i grandi numeri", "matematica"),
+    ("la fisica del quotidiano", "fisica"),
+    ("la storia della scrittura dei numeri", "matematica"),
+    ("i record e le stranezze scientifiche", "scienza generale"),
+    ("il clima e la Terra", "scienze della Terra"),
+    ("le probabilità nella vita reale", "matematica"),
+]
+
+TEMI_INDOVINELLO = [
+    ("logico", "un indovinello risolvibile con puro ragionamento, senza calcoli"),
+    ("numerico", "un indovinello che richiede un piccolo calcolo o intuizione sui numeri"),
+    ("geometrico", "un indovinello su forme, superfici o percorsi"),
+    ("gioco di parole", "un indovinello basato su un doppio senso o un gioco linguistico"),
+    ("probabilità", "un indovinello che gioca con l'idea di caso/fortuna"),
+    ("misura del tempo", "un indovinello su orologi, calendari o durate"),
+    ("classico rivisitato", "una variante originale di un indovinello matematico tradizionale"),
+]
+
+
+def _carica_history():
     try:
-        with open(STORIA_HISTORY_FILE, "r", encoding="utf-8") as f:
-            usati_recenti = json.load(f)
+        with open(TEMI_HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        usati_recenti = []
+        return {}
 
-    disponibili = [t for t in TEMI_STORIA if t[0] not in usati_recenti]
+
+def _salva_history(history):
+    with open(TEMI_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False)
+
+
+def scegli_tema(area, temi, quanti_da_ricordare=10):
+    """
+    Sceglie un tema in modo casuale per l'area indicata, evitando di ripetere
+    gli ultimi `quanti_da_ricordare` temi già usati per quella stessa area.
+    """
+    history = _carica_history()
+    usati_recenti = history.get(area, [])
+
+    disponibili = [t for t in temi if t[0] not in usati_recenti]
     if not disponibili:
-        disponibili = TEMI_STORIA  # reset se esauriti
+        disponibili = temi  # reset se esauriti
 
     scelto = random.choice(disponibili)
 
     usati_recenti.append(scelto[0])
-    usati_recenti = usati_recenti[-10:]  # tiene solo gli ultimi 10
-    with open(STORIA_HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(usati_recenti, f, ensure_ascii=False)
+    history[area] = usati_recenti[-quanti_da_ricordare:]
+    _salva_history(history)
 
     return scelto
 
@@ -120,8 +178,11 @@ def almanacco():
         if cache.get("data") == oggi:
             return jsonify(cache["contenuto"])
 
-    # Scegli il tema storico in modo casuale (non lasciarlo decidere al modello)
-    personaggio, ambito = scegli_tema_storia()
+    # Scegli un tema casuale per ciascuna delle 4 aree (non lasciarlo decidere al modello)
+    tema_quesito, tipo_quesito = scegli_tema("quesito", TEMI_QUESITO)
+    tema_curiosita, ambito_curiosita = scegli_tema("curiosita", TEMI_CURIOSITA)
+    tipo_indovinello, descr_indovinello = scegli_tema("indovinello", TEMI_INDOVINELLO)
+    personaggio, ambito_storia = scegli_tema("storia", TEMI_STORIA)
 
     # Genera un nuovo almanacco per oggi
     prompt = (
@@ -137,8 +198,12 @@ def almanacco():
         '  "storia_testo": "racconto breve (4-5 frasi) di un episodio di storia della matematica, '
         'adatto a 11-13 anni e scritto in modo coinvolgente"\n'
         "}\n\n"
+        f"Per quesito_laterale, il quesito DEVE appartenere alla categoria '{tema_quesito}' "
+        f"({tipo_quesito}).\n"
+        f"Per curiosita, la curiosità DEVE riguardare l'ambito '{tema_curiosita}' ({ambito_curiosita}).\n"
+        f"Per indovinello, l'indovinello DEVE essere di tipo '{tipo_indovinello}' ({descr_indovinello}).\n"
         f"Per storia_titolo e storia_testo, scrivi OBBLIGATORIAMENTE di: {personaggio} "
-        f"(ambito: {ambito}). Scegli un aneddoto o episodio specifico e poco scontato legato a questa figura, "
+        f"(ambito: {ambito_storia}). Scegli un aneddoto o episodio specifico e poco scontato legato a questa figura, "
         "evitando il fatto più ovvio/conosciuto se possibile."
     )
 
